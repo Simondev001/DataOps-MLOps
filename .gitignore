@@ -1,0 +1,24 @@
+# Variables et secrets locaux
+.env
+.env.*
+!.env.example
+
+# Environnement Python et caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Donnees, logs et artefacts generes
+data/
+logs/
+mlruns/
+artifacts/
+*.log
+
+# Fichiers systeme
+.DS_Store
+Thumbs.db
