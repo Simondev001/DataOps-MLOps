@@ -11,7 +11,7 @@ Plateforme universitaire de surveillance de la qualité de l'air. Le dépôt est
 Vérifier les installations :
 
 ```powershell
-python --version
+py --version
 docker --version
 docker compose version
 ```
@@ -36,10 +36,10 @@ Depuis la racine du dépôt :
 3. Créer et activer l'environnement Python :
 
    ```powershell
-   python -m venv .venv
+   py -m venv .venv
    .\.venv\Scripts\Activate.ps1
-   python -m pip install --upgrade pip
-   pip install -r requirements.txt
+   py -m pip install --upgrade pip
+   py -m pip install -r requirements.txt
    ```
 
 4. Vérifier que PostgreSQL répond :
@@ -80,9 +80,43 @@ docker compose --env-file .env -f infra/docker-compose.yml down --volumes
 
 ## État d'avancement
 
-- Phase de démarrage : structure du dépôt et environnement PostgreSQL local.
-- Prochaines étapes : contrat des événements, simulateur IoT et ingestion Kafka.
+- Phase 1 : générateur IoT, contrat JSON et tests de validation réalisés.
+- À poursuivre en phase 1 : Kafka, traitement/validation du flux, détection d'anomalies et stockage des mesures dans PostgreSQL.
+- Phases suivantes : orchestration Airflow, cycle de vie MLflow, API de prédiction, catalogue et tableaux de bord.
 
 ## Développement
 
 Le travail se fait sur des branches `feature/*`, `fix/*` ou `docs/*`, puis est intégré à `develop` par Pull Request. `main` est réservée aux versions stables. Aucun push direct vers `main`.
+
+## Simulateur IoT
+
+Le module `src/ingestion/sensor_generator.py` génère des capteurs autour d'Agadir
+et leurs événements JSON Lines. Chaque événement respecte le contrat du sujet :
+
+- `sensor_id` : identifiant du capteur ;
+- `timestamp` : date ISO 8601 en UTC ;
+- `location` : objet avec `lat` et `lon` ;
+- `measurements` : `pm2_5`, `pm10`, `no2`, `o3` (µg/m³), `temperature` (°C) et `humidity` (%) ;
+- `status` : `active` pour les événements émis.
+
+Les valeurs suivent des variations journalières et des pics de pollution sont
+simulés occasionnellement. Le générateur ignore les capteurs inactifs. Pour
+respecter ce contrat, le consommateur devra décomposer `measurements` avant
+l'insertion dans `air_quality_measurements` ; `timestamp` correspond à la
+colonne SQL `measured_at`, et `location` aux coordonnées du capteur.
+
+Depuis la racine du dépôt, lancer la capture simulée :
+
+```powershell
+py -m src.ingestion.sensor_generator --sensors 5 --events-per-sensor 10 --interval-seconds 60
+```
+
+La commande écrit un événement JSON par ligne dans la sortie standard. Pour
+lancer les tests du projet :
+
+```powershell
+py -m pytest -q
+```
+
+`validate_event(event)` vérifie le contrat. Les fonctions `generate_event`,
+`generate_events` et `simulate_capture` sont importables pour l'intégration.
